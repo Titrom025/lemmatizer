@@ -162,3 +162,5 @@ Temporary Items
 *.xml
 .idea/.name
 CMakeLists.txt
+dict.opcorpora.txt
+dict.opcorpora_clear.txt
