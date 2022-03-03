@@ -6,7 +6,6 @@
 #include <regex>
 #include "unordered_map"
 #include "filesystem"
-#include <locale>
 #include <codecvt>
 #include <string>
 #include <set>
@@ -30,9 +29,9 @@ class Word {
         wstring mood;
         wstring invi;
         wstring voic;
-        wstring initialForm;
+        Word *initWord;
 
-    explicit Word(const wstring& str, wstring initialForm) {
+    explicit Word(const wstring& str) {
         wistringstream iss(str);
         wstring part;
         int partCount = 0;
@@ -44,11 +43,6 @@ class Word {
             }
             partCount++;
         }
-        this->initialForm = move(initialForm);
-
-//        cout << this->word << ' ' << this->partOfSpeech << ' ' << this->anim << ' ' << this->gender << ' ' << this->number << ' ' <<
-//                this->Case << ' ' << this->aspc << ' ' << this->trns << ' ' << this->pers << ' ' << this->tens << ' ' <<
-//                this->mood << ' ' << this->invi << ' ' << this->voic << ' ' << '\n';
     }
 
 
@@ -112,36 +106,38 @@ class Word {
 
 };
 
-ostream &operator<<(ostream &os, Word const &word) {
-    return os << word.word.c_str() << " -> " << word.initialForm.c_str();
+wostream &operator<<(wostream &os, Word const &word) {
+    return os << word.word.c_str() << " -> " << word.partOfSpeech;
 }
 
-unordered_map <wstring, vector<Word>> initDictionary(const string& filename) {
+unordered_map <wstring, vector<Word*>> initDictionary(const string& filename) {
     cout << "Initializing dictionary...\n";
-    unordered_map <wstring, vector<Word>> dictionary;
+    unordered_map <wstring, vector<Word*>> dictionary;
     wifstream infile(filename);
     int wordCount = 0;
-    wstring initForm;
+    Word *initWord = nullptr;
     for(wstring line; getline(infile, line); ) {
         if (line.empty() || isdigit(line.at(0))) {
-            initForm.clear();
+            initWord = nullptr;
             continue;
         }
 
-        Word word = Word(line, initForm);
-        if (initForm.empty()) {
-            initForm = word.word;
-            word.initialForm = initForm;
+        Word *word = new Word(line);
+
+        if (initWord == nullptr) {
+            initWord = word;
         }
 
-        if (dictionary.find(word.word) != dictionary.end()) {
-            dictionary[word.word].push_back(word);
+        word->initWord = initWord;
+
+        if (dictionary.find(word->word) != dictionary.end()) {
+            dictionary[word->word].push_back(word);
+        } else {
+            dictionary.emplace(word->word, vector<Word*>{word});
         }
-        else {
-            dictionary.emplace(word.word, vector<Word> {word});
-        }
-        if (wordCount % 500000 == 0)
+        if (wordCount % 500000 == 0) {
             cout << "Words inserted: " << wordCount << endl;
+        }
         wordCount++;
     }
     cout << "Dictionary initialized.\n";
@@ -156,7 +152,7 @@ vector<string> getFilesFromDir(const string& dirPath) {
     return files;
 }
 
-void handleFile(const string& filePath, unordered_map <wstring, vector<Word>> *dictionary) {
+void handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *dictionary) {
     auto& f = std::use_facet<std::ctype<wchar_t>>(std::locale());
     cout << "File: " << filePath << endl;
     wifstream infile(filePath);
@@ -166,52 +162,48 @@ void handleFile(const string& filePath, unordered_map <wstring, vector<Word>> *d
         for (wstring wordStr; getline(iss, wordStr, L' ');) {
             f.toupper(&wordStr[0], &wordStr[0] + wordStr.size());
 
-            set<wstring> initForms {};
+            set<Word*> initForms {};
             if (dictionary->find(wordStr) != dictionary->end()) {
-                vector<Word> words = dictionary->at(wordStr);
-                for (const Word& word: words) {
-                    initForms.insert(word.initialForm);
-                }
-
-                for (const wstring& initForm : initForms) {
-                    vector<Word> initFormWords = dictionary->at(initForm);
-                    for (auto & initFormWord : initFormWords) {
-                        initFormWord.entryCount++;
-                    }
-                    dictionary->at(initForm) = initFormWords;
+                vector<Word*> words = dictionary->at(wordStr);
+                for (Word* word: words) {
+                    initForms.insert(word->initWord);
+                    word->initWord->entryCount++;
                 }
             }
         }
     }
 }
 
-auto getStatistics(unordered_map <wstring, vector<Word>> *dictionary) {
-    vector<vector<Word>> vals;
+auto getStatistics(unordered_map <wstring, vector<Word*>> *dictionary) {
+    vector<Word*> vals;
     vals.reserve(dictionary->size());
 
     for(const auto& kv : *dictionary) {
-        if (kv.second.at(0).entryCount > 0)
-            vals.push_back(kv.second);
+        for (Word* word: kv.second) {
+            if (word->entryCount > 0)
+                vals.push_back(word);
+        }
     }
 
-    sort(vals.begin(), vals.end(), [](const vector<Word>& a, const vector<Word>& b) {
-        if (a.at(0).entryCount > b.at(0).entryCount) return true;
-        if (a.at(0).entryCount < b.at(0).entryCount) return false;
 
-        if (a.at(0).word < b.at(0).word) return true;
-        if (a.at(0).word > b.at(0).word) return false;
+    sort(vals.begin(), vals.end(), [](const Word* a, const Word* b) {
+        if (a->entryCount > b->entryCount) return true;
+        if (a->entryCount < b->entryCount) return false;
+
+        if (a->word < b->word) return true;
+        if (a->word > b->word) return false;
 
         return false;
     });
 
-    vector<pair<wstring , pair<int, vector<Word>>>> statistics;
-    for (const vector<Word>& wordVector : vals) {
-        if (wordVector.at(0).entryCount == 0)
+    vector<pair<wstring, pair<int, Word*>>> statistics;
+    for (Word* word : vals) {
+        if (word->entryCount == 0)
             break;
 
-        wstring currentLemmaValue = wordVector.at(0).word;
-        int currentLemmaCount = wordVector.at(0).entryCount;
-        statistics.emplace_back(currentLemmaValue, make_pair(currentLemmaCount, wordVector));
+        wstring currentLemmaValue = word->word;
+        int currentLemmaCount = word->entryCount;
+        statistics.emplace_back(currentLemmaValue, make_pair(currentLemmaCount, word));
     }
     return statistics;
 }
@@ -228,7 +220,7 @@ int main() {
     }
 
     for (const auto& elem : getStatistics(&dictionary)) {
-        wcout << elem.first << " - " << elem.second.first << endl;
+        wcout << elem.first << " " << elem.second.second->partOfSpeech << " " << elem.second.first << endl;
     }
     return 0;
 }
