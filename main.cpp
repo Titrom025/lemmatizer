@@ -16,28 +16,27 @@ using recursive_directory_iterator = std::__fs::filesystem::recursive_directory_
 
 class Word {
     public:
+        int entryCount = 0;
+        wstring word;
+        wstring partOfSpeech;
+        wstring anim;
+        wstring gender;
+        wstring number;
+        wstring Case;
+        wstring aspc;
+        wstring trns;
+        wstring pers;
+        wstring tens;
+        wstring mood;
+        wstring invi;
+        wstring voic;
+        wstring initialForm;
 
-    int entryCount = 0;
-        string word;
-        string partOfSpeech;
-        string anim;
-        string gender;
-        string number;
-        string Case;
-        string aspc;
-        string trns;
-        string pers;
-        string tens;
-        string mood;
-        string invi;
-        string voic;
-        string initialForm;
-
-    explicit Word(const string& str, string initialForm) {
-        istringstream iss(str);
-        string part;
+    explicit Word(const wstring& str, wstring initialForm) {
+        wistringstream iss(str);
+        wstring part;
         int partCount = 0;
-        while ( getline( iss, part, ' ' ) ) {
+        while ( getline( iss, part, L' ' ) ) {
             if (partCount == 0) {
                 this->word = part;
             } else {
@@ -53,60 +52,60 @@ class Word {
     }
 
 
-    void writeGrammeme(const string& str) {
-        if (str == "NOUN" || str == "ADJF" || str == "ADJS" || str == "COMP" ||
-            str == "VERB" || str == "INFN" || str == "PRTF" || str == "PRTS" ||
-            str == "GRND" || str == "NUMR" || str == "ADVB" || str == "NPRO" ||
-            str == "PRED" || str == "PREP" || str == "CONJ" || str == "PRCL" ||
-            str == "INTJ") {
+    void writeGrammeme(const wstring& str) {
+        if (str == L"NOUN" || str == L"ADJF" || str == L"ADJS" || str == L"COMP" ||
+            str == L"VERB" || str == L"INFN" || str == L"PRTF" || str == L"PRTS" ||
+            str == L"GRND" || str == L"NUMR" || str == L"ADVB" || str == L"NPRO" ||
+            str == L"PRED" || str == L"PREP" || str == L"CONJ" || str == L"PRCL" ||
+            str == L"INTJ") {
             this->partOfSpeech = str;
         } else
-        if (str == "anim" || str == "inan") {
+        if (str == L"anim" || str == L"inan") {
             this->anim = str;
         } else
-        if (str == "masc" || str == "femn" || str == "neut" || str == "ms-f" ||
-            str == "GNdr") {
+        if (str == L"masc" || str == L"femn" || str == L"neut" || str == L"ms-f" ||
+            str == L"GNdr") {
             this->gender = str;
         } else
-        if (str == "sing" || str == "plur" || str == "Sgtm" || str == "Pltm" || str == "Fixd") {
+        if (str == L"sing" || str == L"plur" || str == L"Sgtm" || str == L"Pltm" || str == L"Fixd") {
             this->number = str;
         } else
-        if (str == "nomn" || str == "gent" || str == "datv" || str == "accs" ||
-            str == "ablt" || str == "loct" || str == "voct" || str == "gen1" ||
-            str == "gen2" || str == "acc2" || str == "loc1" || str == "loc2" ||
-            str == "Abbr" || str == "Name" || str == "Surn" || str == "Patr" ||
-            str == "Geox" || str == "Orgn" || str == "Trad" || str == "Subx" ||
-            str == "Supr" || str == "Qual" || str == "Apro" || str == "Anum" ||
-            str == "Poss" || str == "V-ey" || str == "V-oy" || str == "Cmp2" ||
-            str == "V-ej") {
+        if (str == L"nomn" || str == L"gent" || str == L"datv" || str == L"accs" ||
+            str == L"ablt" || str == L"loct" || str == L"voct" || str == L"gen1" ||
+            str == L"gen2" || str == L"acc2" || str == L"loc1" || str == L"loc2" ||
+            str == L"Abbr" || str == L"Name" || str == L"Surn" || str == L"Patr" ||
+            str == L"Geox" || str == L"Orgn" || str == L"Trad" || str == L"Subx" ||
+            str == L"Supr" || str == L"Qual" || str == L"Apro" || str == L"Anum" ||
+            str == L"Poss" || str == L"V-ey" || str == L"V-oy" || str == L"Cmp2" ||
+            str == L"V-ej") {
             this->Case = str;
         } else
-        if (str == "perf" || str == "impf") {
+        if (str == L"perf" || str == L"impf") {
             this->aspc = str;
         } else
-        if (str == "tran" || str == "intr" || str == "Impe" || str == "Impx" ||
-            str == "Mult" || str == "Refl") {
+        if (str == L"tran" || str == L"intr" || str == L"Impe" || str == L"Impx" ||
+            str == L"Mult" || str == L"Refl") {
             this->trns = str;
         } else
-        if (str == "1per" || str == "2per" || str == "3per") {
+        if (str == L"1per" || str == L"2per" || str == L"3per") {
             this->pers = str;
         } else
-        if (str == "pres" || str == "past" || str == "futr") {
+        if (str == L"pres" || str == L"past" || str == L"futr") {
             this->tens = str;
         } else
-        if (str == "indc" || str == "impr") {
+        if (str == L"indc" || str == L"impr") {
             this->mood = str;
         } else
-        if (str == "incl" || str == "excl") {
+        if (str == L"incl" || str == L"excl") {
             this->invi = str;
         } else
-        if (str == "actv" || str == "pssv" || str == "Infr" || str == "Slng" ||
-            str == "Arch" || str == "Litr" || str == "Erro" || str == "Dist" ||
-            str == "Ques" || str == "Dmns" || str == "Prnt" || str == "V-be" ||
-            str == "V-en" || str == "V-ie" || str == "V-bi" || str == "Fimp" ||
-            str == "Prdx" || str == "Coun" || str == "Coll" || str == "V-sh" ||
-            str == "Af-p" || str == "Inmx" || str == "Vpre" || str == "Anph" ||
-            str == "Init" || str == "Adjx" || str == "Ms-f" || str == "Hypo") {
+        if (str == L"actv" || str == L"pssv" || str == L"Infr" || str == L"Slng" ||
+            str == L"Arch" || str == L"Litr" || str == L"Erro" || str == L"Dist" ||
+            str == L"Ques" || str == L"Dmns" || str == L"Prnt" || str == L"V-be" ||
+            str == L"V-en" || str == L"V-ie" || str == L"V-bi" || str == L"Fimp" ||
+            str == L"Prdx" || str == L"Coun" || str == L"Coll" || str == L"V-sh" ||
+            str == L"Af-p" || str == L"Inmx" || str == L"Vpre" || str == L"Anph" ||
+            str == L"Init" || str == L"Adjx" || str == L"Ms-f" || str == L"Hypo") {
             this->voic = str;
         }
     }
@@ -114,21 +113,17 @@ class Word {
 };
 
 ostream &operator<<(ostream &os, Word const &word) {
-    return os << word.word << " -> " << word.initialForm;
-//                this->Case << ' ' << this->aspc << ' ' << this->trns << ' ' << this->pers << ' ' << this->tens << ' ' <<
-//                this->mood << ' ' << this->invi << ' ' << this->voic << ' ' << '\n';
+    return os << word.word.c_str() << " -> " << word.initialForm.c_str();
 }
 
-unordered_map <string, vector<Word>> initDictionary(const string& filename) {
+unordered_map <wstring, vector<Word>> initDictionary(const string& filename) {
     cout << "Initializing dictionary...\n";
-    unordered_map <string, vector<Word>> dictionary;
-    ifstream infile(filename);
+    unordered_map <wstring, vector<Word>> dictionary;
+    wifstream infile(filename);
     int wordCount = 0;
-    string initForm;
-    for(string line; getline(infile, line); ) {
-        char *endptr;
-        std::strtol(line.c_str(), &endptr, 10);
-        if (*endptr == '\0') {
+    wstring initForm;
+    for(wstring line; getline(infile, line); ) {
+        if (line.empty() || isdigit(line.at(0))) {
             initForm.clear();
             continue;
         }
@@ -161,56 +156,45 @@ vector<string> getFilesFromDir(const string& dirPath) {
     return files;
 }
 
-void handleFile(const string& filePath, unordered_map <string, vector<Word>> *dictionary) {
+void handleFile(const string& filePath, unordered_map <wstring, vector<Word>> *dictionary) {
     auto& f = std::use_facet<std::ctype<wchar_t>>(std::locale());
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
     cout << "File: " << filePath << endl;
-    ifstream infile(filePath);
-    for (string line; getline(infile, line);) {
-        string clearString = std::regex_replace( line, regex( "[[:punct:][:space:]]+"), " ");
-        istringstream iss(clearString);
-        for (string wordStr; getline(iss, wordStr, ' ');) {
-            std::wstring wideStr = converter.from_bytes(wordStr);
-            f.toupper(&wideStr[0], &wideStr[0] + wideStr.size());
-            wordStr = converter.to_bytes(wideStr);
+    wifstream infile(filePath);
+    for (wstring line; getline(infile, line);) {
+        wstring clearString = regex_replace( line, wregex(wstring(L"[[:punct:][:space:]]+")), wstring(L" "));
+        wistringstream iss(clearString);
+        for (wstring wordStr; getline(iss, wordStr, L' ');) {
+            f.toupper(&wordStr[0], &wordStr[0] + wordStr.size());
 
-            set<string> initForms {};
+            set<wstring> initForms {};
             if (dictionary->find(wordStr) != dictionary->end()) {
                 vector<Word> words = dictionary->at(wordStr);
                 for (const Word& word: words) {
                     initForms.insert(word.initialForm);
                 }
 
-                for (const string& initForm : initForms) {
+                for (const wstring& initForm : initForms) {
                     vector<Word> initFormWords = dictionary->at(initForm);
                     for (auto & initFormWord : initFormWords) {
                         initFormWord.entryCount++;
                     }
                     dictionary->at(initForm) = initFormWords;
-//                    cout << "Word: " << wordStr <<  " - Lemma: " << initForm << endl;
                 }
             }
-//            else {
-//                cout << "Word not founded: " << wordStr << endl;
-//            }
         }
     }
 }
 
-auto getStatistics(unordered_map <string, vector<Word>> *dictionary) {
+auto getStatistics(unordered_map <wstring, vector<Word>> *dictionary) {
     vector<vector<Word>> vals;
     vals.reserve(dictionary->size());
 
     for(const auto& kv : *dictionary) {
-        vals.push_back(kv.second);
-//        for (const Word& word : kv.second) {
-//            vals.push_back(word);
-//        }
+        if (kv.second.at(0).entryCount > 0)
+            vals.push_back(kv.second);
     }
 
     sort(vals.begin(), vals.end(), [](const vector<Word>& a, const vector<Word>& b) {
-//        return (a.at(0).entryCount > b.at(0).entryCount);
         if (a.at(0).entryCount > b.at(0).entryCount) return true;
         if (a.at(0).entryCount < b.at(0).entryCount) return false;
 
@@ -220,12 +204,12 @@ auto getStatistics(unordered_map <string, vector<Word>> *dictionary) {
         return false;
     });
 
-    vector<pair<string , pair<int, vector<Word>>>> statistics;
+    vector<pair<wstring , pair<int, vector<Word>>>> statistics;
     for (const vector<Word>& wordVector : vals) {
         if (wordVector.at(0).entryCount == 0)
             break;
 
-        string currentLemmaValue = wordVector.at(0).word;
+        wstring currentLemmaValue = wordVector.at(0).word;
         int currentLemmaCount = wordVector.at(0).entryCount;
         statistics.emplace_back(currentLemmaValue, make_pair(currentLemmaCount, wordVector));
     }
@@ -233,20 +217,18 @@ auto getStatistics(unordered_map <string, vector<Word>> *dictionary) {
 }
 
 int main() {
-    std::locale::global(std::locale(""));
-    std::wcout.imbue(std::locale());
+    locale::global(locale("ru_RU.UTF-8"));
+    wcout.imbue(locale("ru_RU.UTF-8"));
 
     auto dictionary = initDictionary("dict.opcorpora_clear.txt");
     vector<string> files = getFilesFromDir("/Users/titrom/Desktop/Computational Linguistics/Articles");
 
     for (const string& file : files) {
-        cout << file << endl;
         handleFile(file, &dictionary);
-//        break;
     }
 
     for (const auto& elem : getStatistics(&dictionary)) {
-        cout << elem.first << " - " << elem.second.first << endl;
+        wcout << elem.first << " - " << elem.second.first << endl;
     }
     return 0;
 }
