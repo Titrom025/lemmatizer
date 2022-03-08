@@ -171,12 +171,10 @@ vector<string> getFilesFromDir(const string& dirPath) {
 int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *dictionary,
                int *newWordInDict, int *newWordCount, int *multipleLemmasCount) {
     auto& f = std::use_facet<std::ctype<wchar_t>>(std::locale());
-    cout << "File: " << filePath << endl;
 
     int wordHandled = 0;
     wifstream infile(filePath);
     for (wstring line; getline(infile, line);) {
-
         wstring clearString = regex_replace( line, wregex(wstring(L"[[:punct:][:space:]]+")), wstring(L" "));
         wistringstream iss(clearString);
         for (wstring wordStr; getline(iss, wordStr, L' ');) {
@@ -187,10 +185,8 @@ int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *d
 
             if (dictionary->find(wordStr) != dictionary->end()) {
                 vector<Word*> words = dictionary->at(wordStr);
-                if (words.size() > 1) {
+                if (words.size() > 1)
                     *multipleLemmasCount += 1;
-//                    wcout << words.size() << " - " << wordStr << endl;
-                }
 
                 for (Word* word: words) {
                     if (word->partOfSpeech == L"UNKW")
@@ -207,7 +203,6 @@ int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *d
                 Word *newWord = new Word();
                 newWord->word = wordStr;
                 newWord->partOfSpeech = L"UNKW";
-
                 dictionary->emplace(newWord->word, vector<Word*>{newWord});
             }
         }
@@ -268,6 +263,8 @@ int main() {
     int newWordInDict = 0;
     int newWordCount = 0;
     int multipleLemmasCount = 0;
+
+    cout << "Analysing texts...\n";
     for (const string& file : files) {
         int wordsHandledInText = handleFile(file, &dictionary, &newWordInDict,
                                             &newWordCount, &multipleLemmasCount);
@@ -286,11 +283,13 @@ int main() {
     }
 
     wcout << endl
-          << "WordsHandled: " << wordsHandled
-          << ", MultipleLemmasCount: " << multipleLemmasCount
-          << endl
-          << "Words added to dict: " << newWordInDict
-          << ", words not in initial dict: " << newWordCount
-          << endl;
+          << "Token handled: " << wordsHandled << endl
+          << "Number of different words in processed texts: " << statistics.size() << endl
+          << "Tokens with multiple lemmas: " << multipleLemmasCount
+          << " (" << (float) multipleLemmasCount / wordsHandled * 100 << "%)" << endl
+          << "The number of words that were not in the dictionary: " << newWordCount
+          << " (" << (float) newWordCount / wordsHandled * 100 << "%)" << endl
+          << "Number of unique new words added to the dictionary: " << newWordInDict << endl;
+
     return 0;
 }
