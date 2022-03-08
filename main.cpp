@@ -13,9 +13,11 @@
 using namespace std;
 using recursive_directory_iterator = std::__fs::filesystem::recursive_directory_iterator;
 
+int MIN_WORD_LENGTH;
 class Word {
     public:
-        int entryCount = 0;
+        int totalEntryCount = 0;
+        set <string> textEntry;
         wstring word;
         wstring partOfSpeech;
         wstring anim;
@@ -31,11 +33,13 @@ class Word {
         wstring voic;
         Word *initWord;
 
+    Word() {}
+
     explicit Word(const wstring& str) {
         wistringstream iss(str);
         wstring part;
         int partCount = 0;
-        while ( getline( iss, part, L' ' ) ) {
+        while ( getline(iss, part, L' ') ) {
             if (partCount == 0) {
                 this->word = part;
             } else {
@@ -44,7 +48,6 @@ class Word {
             partCount++;
         }
     }
-
 
     void writeGrammeme(const wstring& str) {
         if (str == L"NOUN" || str == L"ADJF" || str == L"ADJS" || str == L"COMP" ||
@@ -107,7 +110,7 @@ class Word {
 };
 
 wostream &operator<<(wostream &os, Word const &word) {
-    return os << word.word.c_str() << " -> " << word.partOfSpeech;
+    return os << word.word.c_str() << " : " << word.partOfSpeech;
 }
 
 unordered_map <wstring, vector<Word*>> initDictionary(const string& filename) {
@@ -152,43 +155,78 @@ vector<string> getFilesFromDir(const string& dirPath) {
     return files;
 }
 
-void handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *dictionary) {
+int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *dictionary,
+               int *newWordInDict, int *newWordCount, int *multipleLemmasCount) {
     auto& f = std::use_facet<std::ctype<wchar_t>>(std::locale());
     cout << "File: " << filePath << endl;
+
+    int wordHandled = 0;
     wifstream infile(filePath);
     for (wstring line; getline(infile, line);) {
+
         wstring clearString = regex_replace( line, wregex(wstring(L"[[:punct:][:space:]]+")), wstring(L" "));
         wistringstream iss(clearString);
         for (wstring wordStr; getline(iss, wordStr, L' ');) {
+            if (wordStr.empty())
+                continue;
+
             f.toupper(&wordStr[0], &wordStr[0] + wordStr.size());
 
-            set<Word*> initForms {};
             if (dictionary->find(wordStr) != dictionary->end()) {
                 vector<Word*> words = dictionary->at(wordStr);
-                for (Word* word: words) {
-                    initForms.insert(word->initWord);
-                    word->initWord->entryCount++;
+                if (words.size() > 1) {
+                    *multipleLemmasCount += 1;
+                    wcout << words.size() << " - " << wordStr << endl;
                 }
+
+                for (Word* word: words) {
+                    if (word->initWord->partOfSpeech == L"UNKW")
+                        *newWordCount += 1;
+
+                    word->initWord->totalEntryCount++;
+                    word->initWord->textEntry.insert(filePath);
+                }
+                wordHandled++;
+            } else if (!(isdigit(wordStr[0]))) {
+                *newWordInDict += 1;
+                *newWordCount += 1;
+
+                Word *newWord = new Word();
+                newWord->word = wordStr;
+                newWord->partOfSpeech = L"UNKW";
+                newWord->initWord = newWord;
+
+                dictionary->emplace(newWord->word, vector<Word*>{newWord});
             }
         }
     }
+
+    return wordHandled;
 }
 
 auto getStatistics(unordered_map <wstring, vector<Word*>> *dictionary) {
-    vector<Word*> vals;
-    vals.reserve(dictionary->size());
+    set<Word*> correctLemmasSet;
 
-    for(const auto& kv : *dictionary) {
-        for (Word* word: kv.second) {
-            if (word->entryCount > 0)
-                vals.push_back(word);
+    for(const auto& pair : *dictionary) {
+        for (Word* word: pair.second) {
+            if (word->initWord->totalEntryCount > 0) {
+                Word* initWord = word->initWord;
+                if (!(initWord->partOfSpeech == L"PREP" || initWord->partOfSpeech == L"CONJ" ||
+                        initWord->partOfSpeech == L"PRCL" || initWord->partOfSpeech == L"INTJ" ||
+                        initWord->partOfSpeech == L"NPRO" || initWord->partOfSpeech == L"PRED" ||
+                        initWord->partOfSpeech == L"NUMR" || initWord->word.length() < MIN_WORD_LENGTH))
+                    correctLemmasSet.insert(initWord);
+            }
         }
     }
 
+    vector<Word*> correctLemmas;
+    correctLemmas.reserve(correctLemmasSet.size());
+    copy(correctLemmasSet.begin(), correctLemmasSet.end(), back_inserter(correctLemmas));
 
-    sort(vals.begin(), vals.end(), [](const Word* a, const Word* b) {
-        if (a->entryCount > b->entryCount) return true;
-        if (a->entryCount < b->entryCount) return false;
+    sort(correctLemmas.begin(), correctLemmas.end(), [](const Word* a, const Word* b) {
+        if (a->totalEntryCount > b->totalEntryCount) return true;
+        if (a->totalEntryCount < b->totalEntryCount) return false;
 
         if (a->word < b->word) return true;
         if (a->word > b->word) return false;
@@ -197,30 +235,51 @@ auto getStatistics(unordered_map <wstring, vector<Word*>> *dictionary) {
     });
 
     vector<pair<wstring, pair<int, Word*>>> statistics;
-    for (Word* word : vals) {
-        if (word->entryCount == 0)
-            break;
-
+    for (Word* word : correctLemmas) {
         wstring currentLemmaValue = word->word;
-        int currentLemmaCount = word->entryCount;
+        int currentLemmaCount = word->totalEntryCount;
         statistics.emplace_back(currentLemmaValue, make_pair(currentLemmaCount, word));
     }
     return statistics;
 }
 
 int main() {
+    MIN_WORD_LENGTH = 3;
+
     locale::global(locale("ru_RU.UTF-8"));
     wcout.imbue(locale("ru_RU.UTF-8"));
 
-    auto dictionary = initDictionary("dict.opcorpora_clear.txt");
+    auto dictionary = initDictionary("dict_opcorpora_clear.txt");
     vector<string> files = getFilesFromDir("/Users/titrom/Desktop/Computational Linguistics/Articles");
 
+    int textCount = 0;
+    int wordsHandled = 0;
+    int newWordInDict = 0;
+    int newWordCount = 0;
+    int multipleLemmasCount = 0;
     for (const string& file : files) {
-        handleFile(file, &dictionary);
+        int wordsHandledInText = handleFile(file, &dictionary, &newWordInDict,
+                                            &newWordCount, &multipleLemmasCount);
+        wordsHandled += wordsHandledInText;
+        textCount++;
     }
 
-    for (const auto& elem : getStatistics(&dictionary)) {
-        wcout << elem.first << " " << elem.second.second->partOfSpeech << " " << elem.second.first << endl;
+    auto statistics = getStatistics(&dictionary);
+
+    for (int i = 0; i < 100; ++i) {
+        auto elem = statistics.at(i);
+        wcout << elem.first << " " << elem.second.second->partOfSpeech
+              << " - Count: " << elem.second.first
+              << ", Text count: " << elem.second.second->textEntry.size()
+              << "/" << textCount << endl;
     }
+
+    wcout << endl
+          << "WordsHandled: " << wordsHandled
+          << ", MultipleLemmasCount: " << multipleLemmasCount
+          << endl
+          << "Words added to dict: " << newWordInDict
+          << ", words not in initial dict: " << newWordCount
+          << endl;
     return 0;
 }
