@@ -31,7 +31,6 @@ class Word {
         wstring mood;
         wstring invi;
         wstring voic;
-        Word *initWord;
 
     Word() {}
 
@@ -113,6 +112,14 @@ wostream &operator<<(wostream &os, Word const &word) {
     return os << word.word.c_str() << " : " << word.partOfSpeech;
 }
 
+wstring getWord(const wstring &line) {
+    int endPosition = 0;
+    while (line.at(endPosition) != L' ')
+        endPosition++;
+
+    return line.substr(0, endPosition);
+}
+
 unordered_map <wstring, vector<Word*>> initDictionary(const string& filename) {
     cout << "Initializing dictionary...\n";
     unordered_map <wstring, vector<Word*>> dictionary;
@@ -125,18 +132,24 @@ unordered_map <wstring, vector<Word*>> initDictionary(const string& filename) {
             continue;
         }
 
-        Word *word = new Word(line);
-
         if (initWord == nullptr) {
-            initWord = word;
+            initWord = new Word(line);
         }
 
-        word->initWord = initWord;
+        wstring word = getWord(line);
 
-        if (dictionary.find(word->word) != dictionary.end()) {
-            dictionary[word->word].push_back(word);
+        if (dictionary.find(word) != dictionary.end()) {
+            bool wordExist = false;
+            for (Word *existWord : dictionary.at(word)) {
+                if (existWord == initWord) {
+                    wordExist = true;
+                    break;
+                }
+            }
+            if (!wordExist)
+                dictionary[word].push_back(initWord);
         } else {
-            dictionary.emplace(word->word, vector<Word*>{word});
+            dictionary.emplace(word, vector<Word*>{initWord});
         }
         if (wordCount % 500000 == 0) {
             cout << "Words inserted: " << wordCount << endl;
@@ -176,15 +189,15 @@ int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *d
                 vector<Word*> words = dictionary->at(wordStr);
                 if (words.size() > 1) {
                     *multipleLemmasCount += 1;
-                    wcout << words.size() << " - " << wordStr << endl;
+//                    wcout << words.size() << " - " << wordStr << endl;
                 }
 
                 for (Word* word: words) {
-                    if (word->initWord->partOfSpeech == L"UNKW")
+                    if (word->partOfSpeech == L"UNKW")
                         *newWordCount += 1;
 
-                    word->initWord->totalEntryCount++;
-                    word->initWord->textEntry.insert(filePath);
+                    word->totalEntryCount++;
+                    word->textEntry.insert(filePath);
                 }
                 wordHandled++;
             } else if (!(isdigit(wordStr[0]))) {
@@ -194,7 +207,6 @@ int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *d
                 Word *newWord = new Word();
                 newWord->word = wordStr;
                 newWord->partOfSpeech = L"UNKW";
-                newWord->initWord = newWord;
 
                 dictionary->emplace(newWord->word, vector<Word*>{newWord});
             }
@@ -209,13 +221,12 @@ auto getStatistics(unordered_map <wstring, vector<Word*>> *dictionary) {
 
     for(const auto& pair : *dictionary) {
         for (Word* word: pair.second) {
-            if (word->initWord->totalEntryCount > 0) {
-                Word* initWord = word->initWord;
-                if (!(initWord->partOfSpeech == L"PREP" || initWord->partOfSpeech == L"CONJ" ||
-                        initWord->partOfSpeech == L"PRCL" || initWord->partOfSpeech == L"INTJ" ||
-                        initWord->partOfSpeech == L"NPRO" || initWord->partOfSpeech == L"PRED" ||
-                        initWord->partOfSpeech == L"NUMR" || initWord->word.length() < MIN_WORD_LENGTH))
-                    correctLemmasSet.insert(initWord);
+            if (word->totalEntryCount > 0) {
+                if (!(word->partOfSpeech == L"PREP" || word->partOfSpeech == L"CONJ" ||
+                        word->partOfSpeech == L"PRCL" || word->partOfSpeech == L"INTJ" ||
+                        word->partOfSpeech == L"NPRO" || word->partOfSpeech == L"PRED" ||
+                        word->partOfSpeech == L"NUMR" || word->word.length() < MIN_WORD_LENGTH))
+                    correctLemmasSet.insert(word);
             }
         }
     }
