@@ -217,11 +217,7 @@ auto getStatistics(unordered_map <wstring, vector<Word*>> *dictionary) {
     for(const auto& pair : *dictionary) {
         for (Word* word: pair.second) {
             if (word->totalEntryCount > 0) {
-                if (!(word->partOfSpeech == L"PREP" || word->partOfSpeech == L"CONJ" ||
-                        word->partOfSpeech == L"PRCL" || word->partOfSpeech == L"INTJ" ||
-                        word->partOfSpeech == L"NPRO" || word->partOfSpeech == L"PRED" ||
-                        word->partOfSpeech == L"NUMR" || word->word.length() < MIN_WORD_LENGTH))
-                    correctLemmasSet.insert(word);
+                correctLemmasSet.insert(word);
             }
         }
     }
@@ -274,6 +270,14 @@ int main() {
 
     auto statistics = getStatistics(&dictionary);
 
+    int totalPossibleLemmas = 0;
+    for (auto elem : statistics) {
+        if (elem.second.second->partOfSpeech != L"UNKW")
+            totalPossibleLemmas += elem.second.second->totalEntryCount;
+        else
+            wcout << elem.second.second->word << endl;
+    }
+
     for (int i = 0; i < 100; ++i) {
         auto elem = statistics.at(i);
         wcout << elem.first << " " << elem.second.second->partOfSpeech
@@ -284,12 +288,12 @@ int main() {
 
     wcout << endl
           << "Token handled: " << wordsHandled << endl
-          << "Number of different words in processed texts: " << statistics.size() << endl
+          << "Possible lemmas count: " << totalPossibleLemmas << endl
           << "Tokens with multiple lemmas: " << multipleLemmasCount
           << " (" << (float) multipleLemmasCount / wordsHandled * 100 << "%)" << endl
           << "The number of words that were not in the dictionary: " << newWordCount
           << " (" << (float) newWordCount / wordsHandled * 100 << "%)" << endl
-          << "Number of unique new words added to the dictionary: " << newWordInDict << endl;
+          << "Precision: " << (float) wordsHandled / totalPossibleLemmas * 100 << "%";
 
     return 0;
 }
