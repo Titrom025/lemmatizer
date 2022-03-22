@@ -10,10 +10,13 @@
 #include <string>
 #include <set>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 using namespace std;
 using recursive_directory_iterator = std::__fs::filesystem::recursive_directory_iterator;
 
-int MIN_WORD_LENGTH;
 class Word {
     public:
         int totalEntryCount = 0;
@@ -35,16 +38,17 @@ class Word {
     Word() {}
 
     explicit Word(const wstring& str) {
-        wistringstream iss(str);
-        wstring part;
-        int partCount = 0;
-        while ( getline(iss, part, L' ') ) {
-            if (partCount == 0) {
-                this->word = part;
-            } else {
-                this->writeGrammeme(part);
+        int begin = 0;
+        for (int pos = 0; pos < str.size(); pos++) {
+            if (str[pos] == L' ') {
+                if (begin == 0)
+                    this->word = str.substr(begin, pos - begin);
+                else
+                    this->writeGrammeme(str.substr(begin, pos - begin));
+
+                begin = pos + 1;
             }
-            partCount++;
+
         }
     }
 
@@ -120,17 +124,55 @@ wstring getWord(const wstring &line) {
     return line.substr(0, endPosition);
 }
 
+void handle_error(const char* msg) {
+    perror(msg);
+    exit(255);
+}
+
+char* map_file(const char* fname, size_t& length)
+{
+    int fd = open(fname, O_RDONLY);
+    if (fd == -1)
+        handle_error("open");
+
+    struct stat sb;
+    if (fstat(fd, &sb) == -1)
+        handle_error("fstat");
+
+    length = sb.st_size;
+
+    char* addr = static_cast<char*>(mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0u));
+    if (addr == MAP_FAILED)
+        handle_error("mmap");
+
+    return addr;
+}
+
 unordered_map <wstring, vector<Word*>> initDictionary(const string& filename) {
     cout << "Initializing dictionary...\n";
     unordered_map <wstring, vector<Word*>> dictionary;
     wifstream infile(filename);
     int wordCount = 0;
     Word *initWord = nullptr;
-    for(wstring line; getline(infile, line); ) {
-        if (line.empty() || isdigit(line.at(0))) {
+
+    size_t length;
+    auto filePtr = map_file(filename.c_str(), length);
+    auto lastChar = filePtr + length;
+
+    while (filePtr && filePtr != lastChar) {
+        auto stringBegin = filePtr;
+        filePtr = static_cast<char *>(memchr(filePtr, '\n', lastChar - filePtr));
+        if (filePtr)
+            filePtr++;
+        else
+            break;
+
+        if (filePtr - stringBegin < 10) {
             initWord = nullptr;
             continue;
         }
+
+        wstring line = wstring_convert<codecvt_utf8<wchar_t>>().from_bytes(stringBegin, filePtr - 1);
 
         if (initWord == nullptr) {
             initWord = new Word(line);
@@ -156,9 +198,11 @@ unordered_map <wstring, vector<Word*>> initDictionary(const string& filename) {
         }
         wordCount++;
     }
+
     cout << "Dictionary initialized.\n";
     return dictionary;
 }
+
 
 vector<string> getFilesFromDir(const string& dirPath) {
     vector<string> files;
@@ -168,42 +212,68 @@ vector<string> getFilesFromDir(const string& dirPath) {
     return files;
 }
 
+void handleWord(wstring &wordStr, const string& filePath, unordered_map <wstring, vector<Word*>> *dictionary,
+               int *newWordInDict, int *newWordCount, int *multipleLemmasCount) {
+    if (dictionary->find(wordStr) != dictionary->end()) {
+        vector<Word*> words = dictionary->at(wordStr);
+        if (words.size() > 1)
+            *multipleLemmasCount += 1;
+
+        for (Word* word: words) {
+            if (word->partOfSpeech == L"UNKW")
+                *newWordCount += 1;
+
+            word->totalEntryCount++;
+            word->textEntry.insert(filePath);
+        }
+    } else {
+        *newWordInDict += 1;
+        *newWordCount += 1;
+
+        Word *newWord = new Word();
+        newWord->word = wordStr;
+        newWord->partOfSpeech = L"UNKW";
+        dictionary->emplace(newWord->word, vector<Word*>{newWord});
+    }
+}
+
 int handleFile(const string& filePath, unordered_map <wstring, vector<Word*>> *dictionary,
                int *newWordInDict, int *newWordCount, int *multipleLemmasCount) {
     auto& f = std::use_facet<std::ctype<wchar_t>>(std::locale());
 
     int wordHandled = 0;
-    wifstream infile(filePath);
-    for (wstring line; getline(infile, line);) {
-        wstring clearString = regex_replace( line, wregex(wstring(L"[[:punct:][:space:]]+")), wstring(L" "));
-        wistringstream iss(clearString);
-        for (wstring wordStr; getline(iss, wordStr, L' ');) {
-            if (wordStr.empty())
-                continue;
 
-            f.toupper(&wordStr[0], &wordStr[0] + wordStr.size());
+    size_t length;
+    auto filePtr = map_file(filePath.c_str(), length);
+    auto lastChar = filePtr + length;
 
-            if (dictionary->find(wordStr) != dictionary->end()) {
-                vector<Word*> words = dictionary->at(wordStr);
-                if (words.size() > 1)
-                    *multipleLemmasCount += 1;
+    while (filePtr && filePtr != lastChar) {
+        auto stringBegin = filePtr;
+        filePtr = static_cast<char *>(memchr(filePtr, '\n', lastChar - filePtr));
+        if (filePtr)
+            filePtr++;
+        else
+            break;
 
-                for (Word* word: words) {
-                    if (word->partOfSpeech == L"UNKW")
-                        *newWordCount += 1;
+        wstring line = wstring_convert<codecvt_utf8<wchar_t>>().from_bytes(stringBegin, filePtr - 1);
 
-                    word->totalEntryCount++;
-                    word->textEntry.insert(filePath);
+        int begin = -1;
+        for (int pos = 0; pos < line.size(); pos++) {
+            wchar_t symbol = line[pos];
+            if (iswcntrl(symbol) || iswpunct(symbol) || iswspace(symbol)
+                || iswdigit(symbol) || iswcntrl(symbol)) {
+                if (begin != -1) {
+                    wstring wordStr = line.substr(begin, pos - begin);
+                    begin = -1;
+
+                    if (!wordStr.empty()) {
+                        f.toupper(&wordStr[0], &wordStr[0] + wordStr.size());
+                        handleWord(wordStr, filePath, dictionary, newWordInDict, newWordCount, multipleLemmasCount);
+                        wordHandled++;
+                    }
                 }
-                wordHandled++;
-            } else if (!(isdigit(wordStr[0]))) {
-                *newWordInDict += 1;
-                *newWordCount += 1;
-
-                Word *newWord = new Word();
-                newWord->word = wordStr;
-                newWord->partOfSpeech = L"UNKW";
-                dictionary->emplace(newWord->word, vector<Word*>{newWord});
+            } else if (begin == -1) {
+                begin = pos;
             }
         }
     }
@@ -246,8 +316,6 @@ auto getStatistics(unordered_map <wstring, vector<Word*>> *dictionary) {
 }
 
 int main() {
-    MIN_WORD_LENGTH = 3;
-
     locale::global(locale("ru_RU.UTF-8"));
     wcout.imbue(locale("ru_RU.UTF-8"));
 
@@ -274,8 +342,6 @@ int main() {
     for (auto elem : statistics) {
         if (elem.second.second->partOfSpeech != L"UNKW")
             totalPossibleLemmas += elem.second.second->totalEntryCount;
-        else
-            wcout << elem.second.second->word << endl;
     }
 
     for (int i = 0; i < 100; ++i) {
